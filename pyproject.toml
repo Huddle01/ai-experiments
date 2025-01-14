@@ -9,10 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 ruff = "^0.9.1"
-
-[tool.poetry.scripts]
-fmt = "scripts:fmt"
-check = "scripts:check"
+ai01 = "^0.2.8"
 
 [tool.ruff]
 exclude = ["proto"]
