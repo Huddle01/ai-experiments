@@ -1,16 +1,15 @@
 import asyncio
-import json
 import logging
 import os
 from typing import Callable
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
-from ai01.providers.openai import AudioTrack
-from ai01.providers.openai.realtime import (
-    RealTimeModel,
-    RealTimeModelOptions,
-    ServerEvent,
+from ai01.providers.gemini.gemini_realtime import (
+    GeminiConfig,
+    GeminiOptions,
+    GeminiRealtime,
 )
+from ai01.providers.openai import AudioTrack
 from ai01.rtc import (
     HuddleClientOptions,
     ProduceOptions,
@@ -20,27 +19,20 @@ from ai01.rtc import (
     RTCOptions,
 )
 from dotenv import load_dotenv
+from google.genai import types
 
-from apps.blackjack.functions.storeAddress import (
-    add_complaint,
-    add_complaint_tool,
-    get_complaint_details,
-    get_complaint_details_tool,
-)
-
-bot_prompt = """
-### Role
-You are an AI Customer Support Agent named Sophie, Your role is to register customer complaints.
-Greet the Customer and introduce yourself as Sophie.
-There are three things the customer can do:
-    1. Register a complaint: if they want to register a complaint. use \'add_complaint\' function.
-    2. Get complaint details: if they want to get the details of their complaint. use \'get_complaint_details\' function.
-"""
 load_dotenv()
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Chatbot")
+
+bot_prompt = """
+##Role: Blackjack Dealer
+You are a BlackJack Dealer named Jack. Your role is to play a game of Blackjack with the customer.
+These are the rules of the game:
+
+"""
 
 
 async def main():
@@ -51,10 +43,10 @@ async def main():
         # Huddle01 Project ID
         huddle_project_id = os.getenv("HUDDLE_PROJECT_ID")
 
-        # OpenAI API Key
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        # gemini API Key
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-        if not huddle_api_key or not huddle_project_id or not openai_api_key:
+        if not huddle_api_key or not huddle_project_id or not gemini_api_key:
             raise ValueError("Required Environment Variables are not set")
 
         # RTCOptions is the configuration for the RTC
@@ -75,15 +67,14 @@ async def main():
         )
 
         # RealTimeModel is the Model which is going to be used by the Agent
-        llm = RealTimeModel(
+        llm = GeminiRealtime(
             agent=agent,
-            options=RealTimeModelOptions(
-                oai_api_key=openai_api_key,
-                instructions=bot_prompt,
-                function_declaration=[
-                    add_complaint_tool,
-                    get_complaint_details_tool,
-                ],
+            options=GeminiOptions(
+                gemini_api_key=gemini_api_key,
+                system_instruction=bot_prompt,
+                config=GeminiConfig(
+                    function_declaration=[],
+                ),
             ),
         )
 
@@ -162,48 +153,18 @@ async def main():
             logger.info("Agent Thinking")
 
         @agent.on(AgentsEvents.ToolCall)
-        async def on_tool_call(
-            callback: Callable, tool_call: ServerEvent.ResponseFunctionCallArgumentsDone
-        ):
+        async def on_tool_call(callback: Callable, tool_call: types.LiveServerToolCall):
             logger.info(f"Tool Call: {tool_call}")
-            function_response = {}
+            function_responses = []
 
-            name = tool_call.get("name")
-            args = json.loads(tool_call.get("arguments"))
+            if tool_call.function_calls:
+                for function_call in tool_call.function_calls:
+                    name = function_call.name
+                    args = function_call.args
+                    # Extract the numeric part from Gemini's function call ID
+                    call_id = function_call.id
 
-            if name == "add_complaint":
-                if not args:
-                    print("Missing required parameters 'name' and 'address'")
-                argname = args["name"]
-                argaddress = args["address"]
-
-                id = add_complaint(argname, argaddress)
-                response = "Stored the name and complaint successfully"
-                function_response = {
-                    "response": response,
-                    "complaint_id": id,
-                }
-            elif name == "get_complaint_details":
-                if not args:
-                    print("Missing required parameter 'complaint_id'")
-                id = args["complaint_id"]
-
-                response = {
-                    "error": "Name not found in the complaint book",
-                }
-                details = get_complaint_details(id)
-                if details is not None:
-                    response = {
-                        "name": details.get("name"),
-                        "complaint": details.get("complaint"),
-                        "resolution_period": details.get("resolution_period"),
-                    }
-
-                function_response = response
-            else:
-                print(f"Unknown function name: {tool_call.get('name')}")
-
-            await callback(function_response)
+            await callback(function_responses)
 
         # Connect to the LLM to the Room
         await llm.connect()
