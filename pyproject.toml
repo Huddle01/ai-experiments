@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "ai-experiments"
+version = "0.1.0"
+description = "Plethora of Ai Agents built on top of the Huddle01 AI SDK"
+authors = ["Arush Kurundodi <arushkurundodi@gmail.com>"]
+license = "Apache License 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+ruff = "^0.9.1"
+
+[tool.poetry.scripts]
+fmt = "scripts:fmt"
+check = "scripts:check"
+
+[tool.ruff]
+exclude = ["proto"]
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
