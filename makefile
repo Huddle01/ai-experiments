@@ -15,6 +15,10 @@ publish:
 	@poetry publish
 	@echo "Published ai-experiments to PyPi"
 
+cli:
+	@echo "play cli blackjack"
+	@poetry run python -m apps.blackjack.functions.main
+
 fmt:
 	@echo "Formatting ai-experiments code"
 	@poetry run python -m ruff format
