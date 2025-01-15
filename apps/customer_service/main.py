@@ -40,21 +40,21 @@ logger = logging.getLogger("Chatbot")
 async def main():
     try:
         # Huddle01 API Key
-        huddle_api_key = os.getenv("HUDDLE_API_KEY")
+        huddle01_api_key = os.getenv("HUDDLE01_API_KEY")
 
         # Huddle01 Project ID
-        huddle_project_id = os.getenv("HUDDLE_PROJECT_ID")
+        huddle01_project_id = os.getenv("HUDDLE01_PROJECT_ID")
 
         # gemini API Key
         gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-        if not huddle_api_key or not huddle_project_id or not gemini_api_key:
+        if not huddle01_api_key or not huddle01_project_id or not gemini_api_key:
             raise ValueError("Required Environment Variables are not set")
 
         # RTCOptions is the configuration for the RTC
         rtcOptions = RTCOptions(
-            api_key=huddle_api_key,
-            project_id=huddle_project_id,
+            api_key=huddle01_api_key,
+            project_id=huddle01_project_id,
             room_id="DAAO",
             role=Role.HOST,
             metadata={"displayName": "Agent"},

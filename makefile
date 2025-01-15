@@ -15,10 +15,6 @@ publish:
 	@poetry publish
 	@echo "Published ai-experiments to PyPi"
 
-cli:
-	@echo "play cli blackjack"
-	@poetry run python -m apps.blackjack.functions.main
-
 fmt:
 	@echo "Formatting ai-experiments code"
 	@poetry run python -m ruff format
@@ -33,4 +29,16 @@ test:
 	@echo "Running ai-experiments tests"
 	@poetry run python -m tests.main
 
-.PHONY: bump pre-bump publish fmt fix test
+cli:
+	@echo "play cli blackjack"
+	@poetry run python -m apps.blackjack.functions.main
+
+blackjack:
+	@echo "play blackjack"
+	@poetry run python -m apps.blackjack.main
+
+customer_service:
+	@echo "play customer_service"
+	@poetry run python -m apps.customer_service.main
+
+.PHONY: bump pre-bump publish fmt fix test cli blackjack customer_service
