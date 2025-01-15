@@ -34,19 +34,13 @@ from apps.blackjack.functions.main import (
     tool_dealer_turn,
     tool_hit,
 )
+from apps.blackjack.prompt import bot_prompt
 
 load_dotenv()
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Chatbot")
-
-bot_prompt = """
-##Role: Blackjack Dealer
-You are a BlackJack Dealer named Jack. Your role is to play a game of Blackjack with the customer.
-These are the rules of the game:
-
-"""
 
 
 async def main():
