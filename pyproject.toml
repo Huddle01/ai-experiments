@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.12"
 ruff = "^0.9.1"
 ai01 = "^0.2.8"
+web3 = "^7.6.1"
 
 [tool.ruff]
 exclude = ["proto"]

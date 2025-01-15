@@ -21,19 +21,14 @@ from ai01.rtc import (
 from dotenv import load_dotenv
 from google.genai import types
 
-from apps.blackjack.functions.main import (
-    calculate_hand_value,
-    check_game_status,
-    create_game_session_and_deal_initial_cards,
-    dealer_turn,
-    hit,
-    tool_calculate_hand_value,
-    tool_check_game_status,
-    tool_create_game_session_and_deal_initial_cards,
-    tool_dealer_turn,
-    tool_hit,
+from apps.customer_service.functions.main import (
+    add_complaint,
+    add_complaint_tool,
+    check_for_complaint,
+    check_for_complaint_tool,
+    get_complaint_details,
+    get_complaint_details_tool,
 )
-from apps.blackjack.prompt import bot_prompt
 
 load_dotenv()
 
@@ -62,7 +57,7 @@ async def main():
             project_id=huddle01_project_id,
             room_id="DAAO",
             role=Role.HOST,
-            metadata={"displayName": "BlackJack Dealer: Jack"},
+            metadata={"displayName": "Agent"},
             huddle_client_options=HuddleClientOptions(
                 autoConsume=True, volatileMessaging=False
             ),
@@ -78,14 +73,17 @@ async def main():
             agent=agent,
             options=GeminiOptions(
                 gemini_api_key=gemini_api_key,
-                system_instruction=bot_prompt,
+                system_instruction="""### Role
+                You are an AI Customer Support Agent named Sophie, Your role is to register customer complaints.
+                There are three things the customer can do:
+                    1. Register a complaint: if they want to register a complaint. ask for their name and complaint.
+                    2. Check for a complaint: if they want to check if their complaint is already registered. ask for their name.
+                    3. Get complaint details: if they want to get the details of their complaint. ask for their name.""",
                 config=GeminiConfig(
                     function_declaration=[
-                        tool_hit,
-                        tool_dealer_turn,
-                        tool_calculate_hand_value,
-                        tool_check_game_status,
-                        tool_create_game_session_and_deal_initial_cards,
+                        add_complaint_tool,
+                        check_for_complaint_tool,
+                        get_complaint_details_tool,
                     ],
                 ),
             ),
@@ -176,72 +174,66 @@ async def main():
                     args = function_call.args
                     # Extract the numeric part from Gemini's function call ID
                     call_id = function_call.id
-                    tool_response = {
-                        "name": name,
-                        "id": call_id,
-                        "response": {},
-                    }
-
-                    if name == "create_game_session_and_deal_initial_cards":
+                    if name == "check_for_complaint":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            print("Missing required parameter 'name'")
                             continue
-
-                        player_id = args["player_id"]
-                        initial_state = create_game_session_and_deal_initial_cards(
-                            player_id
+                        argname = args["name"]
+                        boolean = check_for_complaint(argname)
+                        function_responses.append(
+                            {
+                                "name": "check_for_complaint",
+                                "response": {"exists": boolean},
+                                "id": call_id,
+                            }
                         )
-
-                        tool_response["response"] = initial_state
-
-                    elif name == "hit":
+                    elif name == "add_complaint":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            print("Missing required parameters 'name' and 'complaint'")
                             continue
+                        argname = args["name"]
+                        argcomplaint = args["complaint"]
 
-                        player_id = args["player_id"]
-                        recipient = args["recipient"]
+                        add_complaint(argname, argcomplaint)
+                        response = (
+                            f"Stored the complaint of {argname} as {argcomplaint}"
+                        )
+                        function_responses.append(
+                            {
+                                "name": "add_complaint",
+                                "response": {"response": response},
+                                "id": call_id,
+                            }
+                        )
+                    elif name == "get_complaint_details":
+                        if not args:
+                            print("Missing required parameter 'name'")
+                            continue
+                        argname = args["name"]
 
-                        hit_response = {
-                            "card": hit(player_id, recipient),
-                            "recipient": recipient,
+                        response = {
+                            "error": "Name not found in the complaint book",
                         }
 
-                        tool_response["response"] = hit_response
+                        details = get_complaint_details(argname)
 
-                    elif name == "calculate_hand_value":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
+                        if details is not None:
+                            response = {
+                                "complaint": details.get("complaint"),
+                                "resolution_period": details.get("resolution_period"),
+                            }
 
-                        player_id = args["player_id"]
-                        recipient = args["recipient"]
-
-                        hand_value = calculate_hand_value(player_id, recipient)
-                        tool_response["response"] = hand_value
-
-                    elif name == "dealer_turn":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
-                        player_id = args["player_id"]
-                        dealer_hand = {"dealer_hand": dealer_turn(player_id)}
-
-                        tool_response["response"] = dealer_hand
-                    elif name == "check_game_status":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
-                        player_id = args["player_id"]
-                        game_status = {"game_state": check_game_status(player_id)}
-
-                        tool_response["response"] = game_status
-
-                    # Mark the response to trigger automatic agent reply
-                    function_responses.append(tool_response)
+                        function_responses.append(
+                            {
+                                "name": "get_complaint_details",
+                                "response": response,
+                                "id": call_id,
+                            }
+                        )
+                    else:
+                        print(f"Unknown function name: {function_call.name}")
 
             await callback(function_responses)
-            logger.info(f"sent Function Responses: {function_responses}")
 
         # Connect to the LLM to the Room
         await llm.connect()
