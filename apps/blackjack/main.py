@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from typing import Callable
@@ -20,6 +21,19 @@ from ai01.rtc import (
 )
 from dotenv import load_dotenv
 from google.genai import types
+
+from apps.blackjack.functions.main import (
+    calculate_hand_value,
+    check_game_status,
+    create_game_session_and_deal_initial_cards,
+    dealer_turn,
+    hit,
+    tool_calculate_hand_value,
+    tool_check_game_status,
+    tool_create_game_session_and_deal_initial_cards,
+    tool_dealer_turn,
+    tool_hit,
+)
 
 load_dotenv()
 
@@ -73,7 +87,13 @@ async def main():
                 gemini_api_key=gemini_api_key,
                 system_instruction=bot_prompt,
                 config=GeminiConfig(
-                    function_declaration=[],
+                    function_declaration=[
+                        tool_hit,
+                        tool_dealer_turn,
+                        tool_calculate_hand_value,
+                        tool_check_game_status,
+                        tool_create_game_session_and_deal_initial_cards,
+                    ],
                 ),
             ),
         )
@@ -163,6 +183,76 @@ async def main():
                     args = function_call.args
                     # Extract the numeric part from Gemini's function call ID
                     call_id = function_call.id
+                    tool_response = {
+                        "name": name,
+                        "id": call_id,
+                        "response": "",
+                    }
+
+                    if name == "create_game_session_and_deal_initial_cards":
+                        if not args:
+                            tool_response["response"] = "No arguments provided"
+                            function_responses.append(tool_response)
+                            continue
+
+                        player_id = args["player_id"]
+                        initial_state = create_game_session_and_deal_initial_cards(
+                            player_id
+                        )
+
+                        tool_response["response"] = json.dumps(initial_state)
+                        function_responses.append(tool_response)
+
+                    elif name == "hit":
+                        if not args:
+                            tool_response["response"] = "No arguments provided"
+                            function_responses.append(tool_response)
+                            continue
+
+                        player_id = args["player_id"]
+                        recipient = args["recipient"]
+
+                        hit_response = {
+                            "card": hit(player_id, recipient),
+                            "recipient": recipient,
+                        }
+
+                        tool_response["response"] = json.dumps(hit_response)
+                        function_responses.append(tool_response)
+
+                    elif name == "calculate_hand_value":
+                        if not args:
+                            tool_response["response"] = "No arguments provided"
+                            function_responses.append(tool_response)
+                            continue
+
+                        player_id = args["player_id"]
+                        recipient = args["recipient"]
+
+                        hand_value = calculate_hand_value(player_id, recipient)
+                        tool_response["response"] = json.dumps(hand_value)
+                        function_responses.append(tool_response)
+
+                    elif name == "dealer_turn":
+                        if not args:
+                            tool_response["response"] = "No arguments provided"
+                            function_responses.append(tool_response)
+                            continue
+                        player_id = args["player_id"]
+                        dealer_hand = {"dealer_hand": dealer_turn(player_id)}
+
+                        tool_response["response"] = json.dumps(dealer_hand)
+                        function_responses.append(tool_response)
+                    elif name == "check_game_status":
+                        if not args:
+                            tool_response["response"] = "No arguments provided"
+                            function_responses.append(tool_response)
+                            continue
+                        player_id = args["player_id"]
+                        game_status = {"game_state": check_game_status(player_id)}
+
+                        tool_response["response"] = json.dumps(game_status)
+                        function_responses.append(tool_response)
 
             await callback(function_responses)
 
