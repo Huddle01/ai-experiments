@@ -71,7 +71,6 @@ def create_game_session_and_deal_initial_cards(player_id: int):
 
     return {
         "player_hand": player_hand,
-        "dealer_hand": dealer_hand,
         "dealer_face_up": dealer_hand[1],  # Second card is face-up
     }
 

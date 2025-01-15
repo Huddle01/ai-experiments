@@ -179,13 +179,12 @@ async def main():
                     tool_response = {
                         "name": name,
                         "id": call_id,
-                        "response": "",
+                        "response": {},
                     }
 
                     if name == "create_game_session_and_deal_initial_cards":
                         if not args:
                             tool_response["response"] = "No arguments provided"
-                            function_responses.append(tool_response)
                             continue
 
                         player_id = args["player_id"]
@@ -194,12 +193,10 @@ async def main():
                         )
 
                         tool_response["response"] = initial_state
-                        function_responses.append(tool_response)
 
                     elif name == "hit":
                         if not args:
                             tool_response["response"] = "No arguments provided"
-                            function_responses.append(tool_response)
                             continue
 
                         player_id = args["player_id"]
@@ -211,12 +208,10 @@ async def main():
                         }
 
                         tool_response["response"] = hit_response
-                        function_responses.append(tool_response)
 
                     elif name == "calculate_hand_value":
                         if not args:
                             tool_response["response"] = "No arguments provided"
-                            function_responses.append(tool_response)
                             continue
 
                         player_id = args["player_id"]
@@ -224,28 +219,26 @@ async def main():
 
                         hand_value = calculate_hand_value(player_id, recipient)
                         tool_response["response"] = hand_value
-                        function_responses.append(tool_response)
 
                     elif name == "dealer_turn":
                         if not args:
                             tool_response["response"] = "No arguments provided"
-                            function_responses.append(tool_response)
                             continue
                         player_id = args["player_id"]
                         dealer_hand = {"dealer_hand": dealer_turn(player_id)}
 
                         tool_response["response"] = dealer_hand
-                        function_responses.append(tool_response)
                     elif name == "check_game_status":
                         if not args:
                             tool_response["response"] = "No arguments provided"
-                            function_responses.append(tool_response)
                             continue
                         player_id = args["player_id"]
                         game_status = {"game_state": check_game_status(player_id)}
 
                         tool_response["response"] = game_status
-                        function_responses.append(tool_response)
+
+                    # Mark the response to trigger automatic agent reply
+                    function_responses.append(tool_response)
 
             await callback(function_responses)
             logger.info(f"sent Function Responses: {function_responses}")
