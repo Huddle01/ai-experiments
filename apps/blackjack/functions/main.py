@@ -80,10 +80,10 @@ tool_create_game_session_and_deal_initial_cards = {
     "name": "create_game_session_and_deal_initial_cards",
     "description": "Creates a new game session using player_id and deals initial cards for Blackjack. Two cards are dealt to the player and two cards to the dealer (one face-down).",
     "parameters": {
-        "type": "object",
+        "type": "OBJECT",
         "properties": {
             "player_id": {
-                "type": "integer",
+                "type": "INTEGER",
                 "description": "The unique ID of the player for whom the game session is being created and initial cards are dealt.",
             }
         },
