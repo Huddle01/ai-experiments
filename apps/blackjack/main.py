@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import os
 from typing import Callable
@@ -63,7 +62,7 @@ async def main():
             project_id=huddle01_project_id,
             room_id="DAAO",
             role=Role.HOST,
-            metadata={"displayName": "Agent"},
+            metadata={"displayName": "BlackJack Dealer: Jack"},
             huddle_client_options=HuddleClientOptions(
                 autoConsume=True, volatileMessaging=False
             ),
@@ -194,7 +193,7 @@ async def main():
                             player_id
                         )
 
-                        tool_response["response"] = json.dumps(initial_state)
+                        tool_response["response"] = initial_state
                         function_responses.append(tool_response)
 
                     elif name == "hit":
@@ -211,7 +210,7 @@ async def main():
                             "recipient": recipient,
                         }
 
-                        tool_response["response"] = json.dumps(hit_response)
+                        tool_response["response"] = hit_response
                         function_responses.append(tool_response)
 
                     elif name == "calculate_hand_value":
@@ -224,7 +223,7 @@ async def main():
                         recipient = args["recipient"]
 
                         hand_value = calculate_hand_value(player_id, recipient)
-                        tool_response["response"] = json.dumps(hand_value)
+                        tool_response["response"] = hand_value
                         function_responses.append(tool_response)
 
                     elif name == "dealer_turn":
@@ -235,7 +234,7 @@ async def main():
                         player_id = args["player_id"]
                         dealer_hand = {"dealer_hand": dealer_turn(player_id)}
 
-                        tool_response["response"] = json.dumps(dealer_hand)
+                        tool_response["response"] = dealer_hand
                         function_responses.append(tool_response)
                     elif name == "check_game_status":
                         if not args:
@@ -245,10 +244,11 @@ async def main():
                         player_id = args["player_id"]
                         game_status = {"game_state": check_game_status(player_id)}
 
-                        tool_response["response"] = json.dumps(game_status)
+                        tool_response["response"] = game_status
                         function_responses.append(tool_response)
 
             await callback(function_responses)
+            logger.info(f"sent Function Responses: {function_responses}")
 
         # Connect to the LLM to the Room
         await llm.connect()
