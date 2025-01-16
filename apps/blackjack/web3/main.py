@@ -2,11 +2,10 @@ import asyncio
 
 from eth_account import Account
 from web3 import AsyncWeb3, WebSocketProvider
-from web3.middleware import geth_poa_middleware
+from web3.middleware import proof_of_authority
 
 
 class Web3WalletHandler:
-
     def __init__(self):
         """
         Initializes the Web3 Wallet Handler with a WebSocket provider.
@@ -22,7 +21,7 @@ class Web3WalletHandler:
             )
 
         # Add the POA middleware for compatibility with networks like BSC or Polygon
-        self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        self.w3.middleware_onion.inject(proof_of_authority, layer=0)
 
         if not await self.w3.is_connected():
             raise ConnectionError(
@@ -143,6 +142,7 @@ async def main():
     # Send a transaction (example, replace with actual values)
     # Replace `TO_ADDRESS` with the recipient's address
     # await wallet_handler.send_transaction(wallet["private_key"], "TO_ADDRESS", 0.01)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -168,7 +168,6 @@ async def main():
         @agent.on(AgentsEvents.ToolCall)
         async def on_tool_call(callback: Callable, tool_call: types.LiveServerToolCall):
             logger.info(f"Tool Call: {tool_call}")
-            function_responses = []
 
             if tool_call.function_calls:
                 for function_call in tool_call.function_calls:
@@ -176,15 +175,13 @@ async def main():
                     args = function_call.args
                     # Extract the numeric part from Gemini's function call ID
                     call_id = function_call.id
-                    tool_response = {
-                        "name": name,
-                        "id": call_id,
-                        "response": {},
-                    }
+                    tool_response = types.FunctionResponse(
+                        id=call_id, name=name, response=None
+                    )
 
                     if name == "create_game_session_and_deal_initial_cards":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            tool_response.response = {"error": "No arguments provided"}
                             continue
 
                         player_id = args["player_id"]
@@ -192,11 +189,11 @@ async def main():
                             player_id
                         )
 
-                        tool_response["response"] = initial_state
+                        tool_response.response = initial_state
 
                     elif name == "hit":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            tool_response.response = {"error": "No arguments provided"}
                             continue
 
                         player_id = args["player_id"]
@@ -207,41 +204,38 @@ async def main():
                             "recipient": recipient,
                         }
 
-                        tool_response["response"] = hit_response
+                        tool_response.response = hit_response
 
                     elif name == "calculate_hand_value":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            tool_response.response = {"error": "No arguments provided"}
                             continue
 
                         player_id = args["player_id"]
                         recipient = args["recipient"]
 
                         hand_value = calculate_hand_value(player_id, recipient)
-                        tool_response["response"] = hand_value
+
+                        tool_response.response = {"output": hand_value}
 
                     elif name == "dealer_turn":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            tool_response.response = {"error": "No arguments provided"}
                             continue
                         player_id = args["player_id"]
                         dealer_hand = {"dealer_hand": dealer_turn(player_id)}
 
-                        tool_response["response"] = dealer_hand
+                        tool_response.response = dealer_hand
                     elif name == "check_game_status":
                         if not args:
-                            tool_response["response"] = "No arguments provided"
+                            tool_response.response = {"error": "No arguments provided"}
                             continue
                         player_id = args["player_id"]
                         game_status = {"game_state": check_game_status(player_id)}
 
-                        tool_response["response"] = game_status
+                        tool_response.response = game_status
 
-                    # Mark the response to trigger automatic agent reply
-                    function_responses.append(tool_response)
-
-            await callback(function_responses)
-            logger.info(f"sent Function Responses: {function_responses}")
+                    await callback(input=tool_response, end_of_turn=False)
 
         # Connect to the LLM to the Room
         await llm.connect()

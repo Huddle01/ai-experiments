@@ -9,9 +9,9 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 ruff = "^0.9.1"
-ai01 = "^0.2.9"
 web3 = "^7.6.1"
 eth-account = "^0.13.4"
+ai01 = "^0.2.11"
 
 [tool.ruff]
 exclude = ["proto"]
