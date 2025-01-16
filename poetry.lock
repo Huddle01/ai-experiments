@@ -2,19 +2,19 @@
 
 [[package]]
 name = "ai01"
-version = "0.2.8"
+version = "0.2.9"
 description = "AI Agent SDK on Huddle01 dRTC Network"
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "ai01-0.2.8-py3-none-any.whl", hash = "sha256:6f2825e4cd3449ddc6bdfb7d51e87fc08262888c107cc33ecbfc3567305b2fd6"},
-    {file = "ai01-0.2.8.tar.gz", hash = "sha256:2de3bd4ec0d6f9893a10499947b374dd380389f219efdf799a560d54bf5c6357"},
+    {file = "ai01-0.2.9-py3-none-any.whl", hash = "sha256:546dbb12f5e9c069b369c9a7cd3d9a3bf4213b13ed760b8ab95977e44b70d7f2"},
+    {file = "ai01-0.2.9.tar.gz", hash = "sha256:6dc7f854018820a964789419a32cadf9a0752b8f3035b76b3fad0df61e764a59"},
 ]
 
 [package.dependencies]
 asyncio = ">=3.4.3,<4.0.0"
 av = "11.0.0"
-google-genai = ">=0.2.2,<0.3.0"
+google-genai = ">=0.5.0,<0.6.0"
 huddle01 = "1.0.9"
 numpy = ">=2.1.3,<3.0.0"
 pydantic = "2.10.1"
@@ -1283,13 +1283,13 @@ testing = ["pytest"]
 
 [[package]]
 name = "google-genai"
-version = "0.2.2"
+version = "0.5.0"
 description = "GenAI Python SDK"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "google_genai-0.2.2-py3-none-any.whl", hash = "sha256:83eafad7ba564b212b8a3ac1b863e7d75ebf4bc3b228c7d4cc70209d51e4d949"},
-    {file = "google_genai-0.2.2.tar.gz", hash = "sha256:dc92deb544d6fa3a658509e194ef7cea4dae88a056164016b0a594c731d674b2"},
+    {file = "google_genai-0.5.0-py3-none-any.whl", hash = "sha256:9b30c6f1a9208da0378ca2ba03d3c0ed7ac49a264622a54d19e0e6adc16464ec"},
+    {file = "google_genai-0.5.0.tar.gz", hash = "sha256:69ded0313f35a0cb624a4dee22ae2448068a87105859c6fc338e52e9ac26ecc2"},
 ]
 
 [package.dependencies]
@@ -2611,4 +2611,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "03a177d5c83cb6120c88c1f9f5a3e2d4d2cd04d0fb42c3ffcc5fc9d30d5ab9c9"
+content-hash = "1d41b9966039067e1b34853f5dce7077a3ade8eae6e640d75dde7a3a5a924e25"
