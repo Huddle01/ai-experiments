@@ -185,8 +185,9 @@ async def main():
                             continue
 
                         player_id = args["player_id"]
+                        bet_amount = args["bet_amount"]
                         initial_state = create_game_session_and_deal_initial_cards(
-                            player_id
+                            player_id, bet_amount
                         )
 
                         tool_response.response = initial_state
@@ -234,6 +235,8 @@ async def main():
                         game_status = {"game_state": check_game_status(player_id)}
 
                         tool_response.response = game_status
+
+                    print(tool_response)
 
                     await callback(input=tool_response, end_of_turn=False)
 
