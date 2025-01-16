@@ -1,6 +1,8 @@
+import asyncio
+
 from eth_account import Account
 from web3 import AsyncWeb3, WebSocketProvider
-from web3.middleware import
+from web3.middleware import geth_poa_middleware
 
 
 class Web3WalletHandler:
@@ -8,18 +10,21 @@ class Web3WalletHandler:
     def __init__(self):
         """
         Initializes the Web3 Wallet Handler with a WebSocket provider.
-
-        Args:
-            websocket_url (str): The WebSocket URL of the Ethereum node.
         """
+        self.websocket_url = "wss://huddle-testnet.rpc.caldera.xyz/ws"
+        self.w3: AsyncWeb3 | None = None
 
-        websocket_url="wss://huddle-testnet.rpc.caldera.xyz/ws"
-        self.w3 = AsyncWeb3(WebSocketProvider(websocket_url))
+    async def start(self):
+        self.w3 = AsyncWeb3(WebSocketProvider(self.websocket_url))
+        if self.w3 is None:
+            raise ConnectionError(
+                "Failed to connect to the Ethereum WebSocket provider."
+            )
 
         # Add the POA middleware for compatibility with networks like BSC or Polygon
-        self.w3.middleware_onion.add()
+        self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-        if not self.w3.is_connected():
+        if not await self.w3.is_connected():
             raise ConnectionError(
                 "Failed to connect to the Ethereum WebSocket provider."
             )
@@ -40,7 +45,7 @@ class Web3WalletHandler:
         print(f"New wallet created: {wallet['address']}")
         return wallet
 
-    def get_balance(self, address: str):
+    async def get_balance(self, address: str):
         """
         Gets the Ether balance of an Ethereum address.
 
@@ -50,12 +55,16 @@ class Web3WalletHandler:
         Returns:
             float: The balance in Ether.
         """
-        balance_wei = self.w3.eth.get_balance(address)
+        if self.w3 is None:
+            raise ConnectionError(
+                "Failed to connect to the Ethereum WebSocket provider."
+            )
+        balance_wei = await self.w3.eth.get_balance(address)
         balance_eth = self.w3.fromWei(balance_wei, "ether")
         print(f"Balance for {address}: {balance_eth} ETH")
         return balance_eth
 
-    def send_transaction(
+    async def send_transaction(
         self,
         private_key: str,
         to_address: str,
@@ -76,8 +85,12 @@ class Web3WalletHandler:
         Returns:
             str: The transaction hash.
         """
+        if self.w3 is None:
+            raise ConnectionError(
+                "Failed to connect to the Ethereum WebSocket provider."
+            )
         from_account = Account.from_key(private_key)
-        nonce = self.w3.eth.get_transaction_count(from_account.address)
+        nonce = await self.w3.eth.get_transaction_count(from_account.address)
 
         # Prepare transaction
         tx = {
@@ -92,11 +105,11 @@ class Web3WalletHandler:
         signed_tx = self.w3.eth.account.sign_transaction(tx, private_key)
 
         # Send transaction
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        tx_hash = await self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
         print(f"Transaction sent with hash: {tx_hash.hex()}")
         return tx_hash.hex()
 
-    def get_transaction_receipt(self, tx_hash: str):
+    async def get_transaction_receipt(self, tx_hash: str):
         """
         Fetches the receipt of a transaction.
 
@@ -106,22 +119,30 @@ class Web3WalletHandler:
         Returns:
             dict: The transaction receipt.
         """
-        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        if self.w3 is None:
+            raise ConnectionError(
+                "Failed to connect to the Ethereum WebSocket provider."
+            )
+        receipt = await self.w3.eth.wait_for_transaction_receipt(tx_hash)
         print(f"Transaction receipt: {receipt}")
         return receipt
 
 
 # Example Usage
-if __name__ == "__main__":
+async def main():
     # Initialize Web3WalletHandler with a WebSocket provider
     wallet_handler = Web3WalletHandler()
+    await wallet_handler.start()
 
     # Create a new wallet
     wallet = wallet_handler.create_wallet()
 
     # Check the balance of the wallet
-    wallet_handler.get_balance(wallet["address"])
+    await wallet_handler.get_balance(wallet["address"])
 
     # Send a transaction (example, replace with actual values)
     # Replace `TO_ADDRESS` with the recipient's address
-    # wallet_handler.send_transaction(wallet["private_key"], "TO_ADDRESS", 0.01)
+    # await wallet_handler.send_transaction(wallet["private_key"], "TO_ADDRESS", 0.01)
+
+if __name__ == "__main__":
+    asyncio.run(main())
