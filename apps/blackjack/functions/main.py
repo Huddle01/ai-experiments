@@ -54,6 +54,13 @@ def create_game_session_and_deal_initial_cards(player_id: int, bet_amount: int):
     Returns:
         dict: A dictionary with the initial hands of the player and dealer.
     """
+    bal = dealer.get_balance(player_id)
+
+    if bal < bet_amount:
+        raise ValueError(
+            f"Not enough balance for player_id: {player_id}"
+        )
+
     game_state = game_state_map.get(player_id)
     if not game_state:
         game_state_map[player_id] = {
@@ -62,6 +69,7 @@ def create_game_session_and_deal_initial_cards(player_id: int, bet_amount: int):
             "player_hand": [],
             "dealer_hand": [],
         }
+        dealer.place_bet(player_id, bet_amount)
         game_state = game_state_map[player_id]
 
     deck = game_state["deck"]
@@ -389,4 +397,6 @@ if __name__ == "__main__":
 
         # Check game status
         status = check_game_status(player_id)
+        game_state = dealer.GameState[status["game_state"]]
+        dealer.resolve_game(player_id, game_state)
         print("Game Status:", status)

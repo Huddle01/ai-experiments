@@ -57,18 +57,14 @@ class BlackjackDealer:
         """
         return self.contract.functions.getBalance(player_id).call()
 
-    def place_bet(self, player_private_key: str, player_id: int, bet_amount_wei: int):
-        """
-        Player places a bet of bet_amount_wei for the given player_id.
-        """
-        player_account = Account.from_key(player_private_key)
+    def place_bet(self, player_id: int, bet_amount_wei: int):
         tx = self.contract.functions.placeBet(player_id, bet_amount_wei).build_transaction({
-            'from': player_account.address,
-            'nonce': self.web3.eth.get_transaction_count(player_account.address),
+            'from': self.owner_account.address,
+            'nonce': self.web3.eth.get_transaction_count(self.owner_account.address),
             'gas': 300000,
             'gasPrice': self.web3.eth.gas_price
         })
-        signed_tx = self.web3.eth.account.sign_transaction(tx, private_key=player_private_key)
+        signed_tx = self.web3.eth.account.sign_transaction(tx, private_key=self.owner_account.key)
         tx_hash = self.web3.eth.send_raw_transaction(signed_tx.rawTransaction)
         receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
         return receipt
