@@ -3,6 +3,7 @@ from typing import Dict, List, Literal, TypedDict
 
 
 class GameState(TypedDict):
+    bet_amount: int
     deck: List[str]
     player_hand: List[str]
     dealer_hand: List[str]
@@ -32,7 +33,7 @@ def shuffle_deck(deck: List[str]) -> List[str]:
 
 
 # Deal initial cards
-def create_game_session_and_deal_initial_cards(player_id: int):
+def create_game_session_and_deal_initial_cards(player_id: int, bet_amount: int):
     """
     Creates a new game session using player_id and
     Deals initial cards for Blackjack:
@@ -49,6 +50,7 @@ def create_game_session_and_deal_initial_cards(player_id: int):
     if not game_state:
         game_state_map[player_id] = {
             "deck": create_deck(),
+            "bet_amount": bet_amount,
             "player_hand": [],
             "dealer_hand": [],
         }
@@ -84,7 +86,11 @@ tool_create_game_session_and_deal_initial_cards = {
             "player_id": {
                 "type": "INTEGER",
                 "description": "The unique ID of the player for whom the game session is being created and initial cards are dealt.",
-            }
+            },
+            "bet_amount": {
+                "type": "INTEGER",
+                "description": "The amount of the bet placed by the player.",
+            },
         },
         "required": ["player_id"],
     },
@@ -263,7 +269,14 @@ GameStateType = Literal[
 
 
 # Check game status
-def check_game_status(player_id: int) -> GameStateType:
+
+
+class GameStateResult(TypedDict):
+    game_state: GameStateType
+    amount: float
+
+
+def check_game_status(player_id: int) -> GameStateResult:
     """
     Checks the status of the game (win/loss/tie).
 
@@ -285,23 +298,25 @@ def check_game_status(player_id: int) -> GameStateType:
 
     player_hand = game_state["player_hand"]
     dealer_hand = game_state["dealer_hand"]
+    bet_amount = game_state["bet_amount"]
 
     player_value = calculate_hand_value(player_id, "player")["total"]
     dealer_value = calculate_hand_value(player_id, "dealer")["total"]
 
     if player_value > 21:
-        return "player_bust"
+        return {"game_state": "player_bust", "amount": -bet_amount}
     if dealer_value > 21:
-        return "dealer_bust"
+        return {"game_state": "dealer_bust", "amount": 2 * bet_amount}
     if player_value == 21 and len(player_hand) == 2:
-        return "player_blackjack"
+        return {"game_state": "player_blackjack", "amount": 5 / 2 * bet_amount}
     if dealer_value == 21 and len(dealer_hand) == 2:
-        return "dealer_blackjack"
+        return {"game_state": "dealer_blackjack", "amount": -bet_amount}
     if player_value > dealer_value:
-        return "player_win"
+        return {"game_state": "player_win", "amount": 2 * bet_amount}
     if player_value < dealer_value:
-        return "dealer_win"
-    return "tie"
+        return {"game_state": "dealer_win", "amount": -bet_amount}
+
+    return {"game_state": "dealer_win", "amount": 0}
 
 
 tool_check_game_status = {
@@ -335,7 +350,7 @@ if __name__ == "__main__":
     # Initialize a game
     player_id = 1
     # Deal initial cards
-    initial_state = create_game_session_and_deal_initial_cards(player_id)
+    initial_state = create_game_session_and_deal_initial_cards(player_id, 10)
     print("Player's Hand:", initial_state["player_hand"])
     print("Dealer's Face-Up Card:", initial_state["dealer_face_up"])
 

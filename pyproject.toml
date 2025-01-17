@@ -5,12 +5,14 @@ description = "Plethora of Ai Agents built on top of the Huddle01 AI SDK"
 authors = ["Arush Kurundodi <arushkurundodi@gmail.com>"]
 license = "Apache License 2.0"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
 ruff = "^0.9.1"
-ai01 = "^0.2.8"
 web3 = "^7.6.1"
+eth-account = "^0.13.4"
+ai01 = "^0.2.14"
 
 [tool.ruff]
 exclude = ["proto"]

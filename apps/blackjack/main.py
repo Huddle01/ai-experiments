@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import os
-from typing import Callable
+from typing import Awaitable, Callable
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
+from ai01.providers._api import ToolCallData, ToolResponseData
 from ai01.providers.gemini.gemini_realtime import (
     GeminiConfig,
     GeminiOptions,
@@ -19,7 +20,6 @@ from ai01.rtc import (
     RTCOptions,
 )
 from dotenv import load_dotenv
-from google.genai import types
 
 from apps.blackjack.functions.main import (
     calculate_hand_value,
@@ -53,18 +53,26 @@ async def main():
         # gemini API Key
         gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-        if not huddle01_api_key or not huddle01_project_id or not gemini_api_key:
+        # Room ID
+        room_id = os.getenv("ROOM_ID")
+
+        if (
+            not huddle01_api_key
+            or not huddle01_project_id
+            or not gemini_api_key
+            or not room_id
+        ):
             raise ValueError("Required Environment Variables are not set")
 
         # RTCOptions is the configuration for the RTC
         rtcOptions = RTCOptions(
             api_key=huddle01_api_key,
             project_id=huddle01_project_id,
-            room_id="DAAO",
+            room_id=room_id,
             role=Role.HOST,
             metadata={"displayName": "BlackJack Dealer: Jack"},
             huddle_client_options=HuddleClientOptions(
-                autoConsume=True, volatileMessaging=False
+                autoConsume=False, volatileMessaging=False
             ),
         )
 
@@ -111,9 +119,15 @@ async def main():
         # def on_room_closed(data: RoomEventsData.RoomClosed):
         #     logger.info("Room Closed")
 
-        # @room.on(RoomEvents.RemoteProducerAdded)
-        # def on_remote_producer_added(data: RoomEventsData.RemoteProducerAdded):
-        #     logger.info(f"Remote Producer Added: {data['producer_id']}")
+        @room.on(RoomEvents.RemoteProducerAdded)
+        def on_remote_producer_added(data: RoomEventsData.RemoteProducerAdded):
+            logger.info(f"Remote Producer Added: {data['producer_id']}")
+            if data["label"] == "audio":
+                asyncio.create_task(
+                    agent.rtc.consume(
+                        peer_id=data["remote_peer_id"], producer_id=data["producer_id"]
+                    )
+                )
 
         # @room.on(RoomEvents.RemoteProducerClosed)
         # def on_remote_producer_closed(data: RoomEventsData.RemoteProducerClosed):
@@ -166,82 +180,92 @@ async def main():
             logger.info("Agent Thinking")
 
         @agent.on(AgentsEvents.ToolCall)
-        async def on_tool_call(callback: Callable, tool_call: types.LiveServerToolCall):
+        async def on_tool_call(
+            callback: Callable[[ToolResponseData], Awaitable[None]],
+            tool_call: ToolCallData,
+        ):
             logger.info(f"Tool Call: {tool_call}")
-            function_responses = []
 
-            if tool_call.function_calls:
-                for function_call in tool_call.function_calls:
-                    name = function_call.name
-                    args = function_call.args
-                    # Extract the numeric part from Gemini's function call ID
-                    call_id = function_call.id
-                    tool_response = {
-                        "name": name,
-                        "id": call_id,
-                        "response": {},
+            name = tool_call.function_name
+            args = tool_call.arguments
+
+            response = ToolResponseData(result={}, end_of_turn=False)
+
+            if name == "create_game_session_and_deal_initial_cards":
+                if not args or "player_id" not in args or "bet_amount" not in args:
+                    logger.error(
+                        "Missing required parameters 'player_id' and 'bet_amount'"
+                    )
+                    response.result = {
+                        "error": "Missing required parameters 'player_id' and 'bet_amount'"
                     }
+                else:
+                    player_id = args["player_id"]
+                    bet_amount = args["bet_amount"]
+                    initial_state = create_game_session_and_deal_initial_cards(
+                        player_id, bet_amount
+                    )
+                    response.result = initial_state
 
-                    if name == "create_game_session_and_deal_initial_cards":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
+            elif name == "hit":
+                if not args or "player_id" not in args or "recipient" not in args:
+                    logger.error(
+                        "Missing required parameters 'player_id' and 'recipient'"
+                    )
+                    response.result = {
+                        "error": "Missing required parameters 'player_id' and 'recipient'"
+                    }
+                else:
+                    player_id = args["player_id"]
+                    recipient = args["recipient"]
+                    hit_response = {
+                        "card": hit(player_id, recipient),
+                        "recipient": recipient,
+                    }
+                    response.result = hit_response
 
-                        player_id = args["player_id"]
-                        initial_state = create_game_session_and_deal_initial_cards(
-                            player_id
-                        )
+            elif name == "calculate_hand_value":
+                if not args or "player_id" not in args or "recipient" not in args:
+                    logger.error(
+                        "Missing required parameters 'player_id' and 'recipient'"
+                    )
+                    response.result = {
+                        "error": "Missing required parameters 'player_id' and 'recipient'"
+                    }
+                else:
+                    player_id = args["player_id"]
+                    recipient = args["recipient"]
+                    hand_value = calculate_hand_value(player_id, recipient)
+                    response.result = {"output": hand_value}
 
-                        tool_response["response"] = initial_state
+            elif name == "dealer_turn":
+                if not args or "player_id" not in args:
+                    logger.error("Missing required parameter 'player_id'")
+                    response.result = {
+                        "error": "Missing required parameter 'player_id'"
+                    }
+                else:
+                    player_id = args["player_id"]
+                    dealer_hand = {"dealer_hand": dealer_turn(player_id)}
+                    response.result = dealer_hand
 
-                    elif name == "hit":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
+            elif name == "check_game_status":
+                if not args or "player_id" not in args:
+                    logger.error("Missing required parameter 'player_id'")
+                    response.result = {
+                        "error": "Missing required parameter 'player_id'"
+                    }
+                else:
+                    player_id = args["player_id"]
+                    game_status = {"game_state": check_game_status(player_id)}
+                    response.result = game_status
 
-                        player_id = args["player_id"]
-                        recipient = args["recipient"]
+            else:
+                logger.error(f"Unknown function name: {name}")
+                response.result = {"error": f"Unknown function name: {name}"}
 
-                        hit_response = {
-                            "card": hit(player_id, recipient),
-                            "recipient": recipient,
-                        }
-
-                        tool_response["response"] = hit_response
-
-                    elif name == "calculate_hand_value":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
-
-                        player_id = args["player_id"]
-                        recipient = args["recipient"]
-
-                        hand_value = calculate_hand_value(player_id, recipient)
-                        tool_response["response"] = hand_value
-
-                    elif name == "dealer_turn":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
-                        player_id = args["player_id"]
-                        dealer_hand = {"dealer_hand": dealer_turn(player_id)}
-
-                        tool_response["response"] = dealer_hand
-                    elif name == "check_game_status":
-                        if not args:
-                            tool_response["response"] = "No arguments provided"
-                            continue
-                        player_id = args["player_id"]
-                        game_status = {"game_state": check_game_status(player_id)}
-
-                        tool_response["response"] = game_status
-
-                    # Mark the response to trigger automatic agent reply
-                    function_responses.append(tool_response)
-
-            await callback(function_responses)
-            logger.info(f"sent Function Responses: {function_responses}")
+            logger.info(f"Tool Response: {response}")
+            await callback(response)
 
         # Connect to the LLM to the Room
         await llm.connect()
