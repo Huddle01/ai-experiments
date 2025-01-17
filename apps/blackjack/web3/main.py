@@ -88,19 +88,3 @@ class BlackjackDealer:
         tx_hash = self.web3.eth.send_raw_transaction(signed_tx.rawTransaction)
         receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
         return receipt
-
-    def withdraw_funds(self, player_private_key: str, player_id: int, amount_wei: int):
-        """
-        Player withdraws 'amount_wei' from their balance.
-        """
-        player_account = Account.from_key(player_private_key)
-        tx = self.contract.functions.withdraw(player_id, amount_wei).build_transaction({
-            'from': player_account.address,
-            'nonce': self.web3.eth.get_transaction_count(player_account.address),
-            'gas': 300000,
-            'gasPrice': self.web3.eth.gas_price
-        })
-        signed_tx = self.web3.eth.account.sign_transaction(tx, private_key=player_private_key)
-        tx_hash = self.web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
-        return receipt
