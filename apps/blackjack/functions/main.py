@@ -1,5 +1,7 @@
 import random
+from web3 import BlackjackDealer
 from typing import Dict, List, Literal, TypedDict
+import os
 
 
 class GameState(TypedDict):
@@ -13,6 +15,12 @@ class GameState(TypedDict):
 Dict to store the game_state of each player id
 """
 game_state_map: Dict[int, GameState] = {}
+
+dealer = BlackjackDealer(
+        rpc_url=os.getenv("RPC_URL"), 
+        contract_address=os.getenv("CONTRACT_ADDRESS"),
+        private_key=os.getenv("PRIVATE_KEY")
+    )
 
 
 # Define the card deck
