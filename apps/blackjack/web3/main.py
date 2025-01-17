@@ -2,7 +2,6 @@ import asyncio
 
 from eth_account import Account
 from web3 import AsyncWeb3, WebSocketProvider
-from web3.middleware import proof_of_authority
 
 
 class Web3WalletHandler:
@@ -21,7 +20,7 @@ class Web3WalletHandler:
             )
 
         # Add the POA middleware for compatibility with networks like BSC or Polygon
-        self.w3.middleware_onion.inject(proof_of_authority, layer=0)
+        # self.w3.middleware_onion.inject(proof_of_authority, layer=0)
 
         if not await self.w3.is_connected():
             raise ConnectionError(
