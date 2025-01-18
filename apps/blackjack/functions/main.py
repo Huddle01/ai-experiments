@@ -211,7 +211,7 @@ tool_calculate_hand_value = {
                 "description": "The recipient of the drawn card. Can be either 'player' or 'dealer'.",
             },
         },
-        "required": ["player_id"],
+        "required": ["player_id", "recipient"],
     },
 }
 

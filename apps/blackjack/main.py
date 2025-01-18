@@ -35,6 +35,8 @@ from apps.blackjack.functions.main import (
 )
 from apps.blackjack.prompt import bot_prompt
 
+# from ai01.providers.openai.realtime import RealTimeModel, RealTimeModelOptions
+
 load_dotenv()
 
 
@@ -53,6 +55,9 @@ async def main():
         # gemini API Key
         gemini_api_key = os.getenv("GEMINI_API_KEY")
 
+        # OpenAI API Key
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+
         # Room ID
         room_id = os.getenv("ROOM_ID")
 
@@ -60,6 +65,7 @@ async def main():
             not huddle01_api_key
             or not huddle01_project_id
             or not gemini_api_key
+            or not openai_api_key
             or not room_id
         ):
             raise ValueError("Required Environment Variables are not set")
@@ -82,6 +88,21 @@ async def main():
         )
 
         # RealTimeModel is the Model which is going to be used by the Agent
+        # llm = RealTimeModel(
+        #     agent=agent,
+        #     options=RealTimeModelOptions(
+        #         oai_api_key=openai_api_key,
+        #         instructions=bot_prompt,
+        #         function_declaration=[
+        #             tool_hit,
+        #             tool_dealer_turn,
+        #             tool_calculate_hand_value,
+        #             tool_check_game_status,
+        #             tool_create_game_session_and_deal_initial_cards,
+        #         ],
+        #     ),
+        # )
+
         llm = GeminiRealtime(
             agent=agent,
             options=GeminiOptions(
@@ -189,7 +210,7 @@ async def main():
             name = tool_call.function_name
             args = tool_call.arguments
 
-            response = ToolResponseData(result={}, end_of_turn=False)
+            response = ToolResponseData(result={}, end_of_turn=True)
 
             if name == "create_game_session_and_deal_initial_cards":
                 if not args or "player_id" not in args or "bet_amount" not in args:
