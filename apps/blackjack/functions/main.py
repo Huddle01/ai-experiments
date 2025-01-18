@@ -1,7 +1,8 @@
-import random
-from web3 import BlackjackDealer
-from typing import Dict, List, Literal, TypedDict
 import os
+import random
+from typing import Dict, List, Literal, TypedDict
+
+from apps.blackjack.web3.main import BlackjackDealer
 
 
 class GameState(TypedDict):
@@ -16,11 +17,12 @@ Dict to store the game_state of each player id
 """
 game_state_map: Dict[int, GameState] = {}
 
+
 dealer = BlackjackDealer(
-        rpc_url=os.getenv("RPC_URL"), 
-        contract_address=os.getenv("CONTRACT_ADDRESS"),
-        private_key=os.getenv("PRIVATE_KEY")
-    )
+    rpc_url=os.getenv("RPC_URL") or "",
+    contract_address=os.getenv("CONTRACT_ADDRESS") or "",
+    owner_private_key=os.getenv("PRIVATE_KEY") or "",
+)
 
 
 # Define the card deck
@@ -57,9 +59,7 @@ def create_game_session_and_deal_initial_cards(player_id: int, bet_amount: int):
     bal = dealer.get_balance(player_id)
 
     if bal < bet_amount:
-        raise ValueError(
-            f"Not enough balance for player_id: {player_id}"
-        )
+        raise ValueError(f"Not enough balance for player_id: {player_id}")
 
     game_state = game_state_map.get(player_id)
     if not game_state:
@@ -227,7 +227,7 @@ tool_calculate_hand_value = {
                 "description": "The recipient of the drawn card. Can be either 'player' or 'dealer'.",
             },
         },
-        "required": ["player_id"],
+        "required": ["player_id", "recipient"],
     },
 }
 
