@@ -58,7 +58,6 @@ class Web3WalletHandler:
                 "Failed to connect to the Ethereum WebSocket provider."
             )
         balance_wei = await self.w3.eth.get_balance(address)
-        balance_eth = self.w3.fromWei(balance_wei, "ether")
         print(f"Balance for {address}: {balance_eth} ETH")
         return balance_eth
 
