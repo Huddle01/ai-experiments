@@ -17,7 +17,6 @@ Dict to store the game_state of each player id
 """
 game_state_map: Dict[int, GameState] = {}
 
-
 dealer = BlackjackDealer(
     rpc_url=os.getenv("RPC_URL") or "",
     contract_address=os.getenv("CONTRACT_ADDRESS") or "",

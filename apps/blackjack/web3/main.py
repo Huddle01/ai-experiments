@@ -1,7 +1,10 @@
 import json
-
 from eth_account import Account
 from web3 import Web3
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class BlackjackDealer:
@@ -39,11 +42,11 @@ class BlackjackDealer:
         """
         self.web3 = Web3(Web3.HTTPProvider(rpc_url))
 
-        with open("./abi/Blackjack.json") as f:
+        with open("apps/blackjack/web3/abi/Blackjack.json") as f:
             contract_abi = json.load(f)
 
         self.contract = self.web3.eth.contract(
-            address=self.web3.toChecksumAddress(contract_address), abi=contract_abi
+            address=self.web3.to_checksum_address(contract_address), abi=contract_abi
         )
 
         self.owner_account = Account.from_key(owner_private_key)
