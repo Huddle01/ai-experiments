@@ -19,7 +19,7 @@ game_state_map: Dict[int, GameState] = {}
 
 dealer = BlackjackDealer(
     rpc_url=os.getenv("RPC_URL") or "",
-    contract_address=os.getenv("CONTRACT_ADDRESS") or "",
+    contract_address=os.getenv("BLACKJACK_ADDRESS") or "",
     owner_private_key=os.getenv("PRIVATE_KEY") or "",
 )
 

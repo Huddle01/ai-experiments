@@ -1,8 +1,8 @@
 import json
-from eth_account import Account
-from web3 import Web3
 
 from dotenv import load_dotenv
+from eth_account import Account
+from web3 import Web3
 
 load_dotenv()
 
@@ -51,13 +51,23 @@ class BlackjackDealer:
 
         self.owner_account = Account.from_key(owner_private_key)
 
+    def ether_to_wei(self, amount: int) -> int:
+        """
+        Converts Ether to Wei.
+        :param amount: Amount in Ether (integer or float).
+        :return: Equivalent Wei value.
+        """
+        return self.web3.to_wei(amount, "ether")
+
     def get_balance(self, player_id: int) -> int:
         """
         Returns the balance of the given player_id (in wei).
         """
-        return self.contract.functions.getBalance(player_id).call()
+        balance_wei = self.contract.functions.getBalance(player_id).call()
+        return self.web3.from_wei(balance_wei, "ether")
 
-    def place_bet(self, player_id: int, bet_amount_wei: int):
+    def place_bet(self, player_id: int, bet_amount: int):
+        bet_amount_wei = self.ether_to_wei(bet_amount)
         tx = self.contract.functions.placeBet(
             player_id, bet_amount_wei
         ).build_transaction(

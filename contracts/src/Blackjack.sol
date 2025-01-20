@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract Blackjack {
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract Blackjack is ReentrancyGuard {
     enum GameState {
         PLAYER_BUST,
         DEALER_BUST,
@@ -22,9 +25,11 @@ contract Blackjack {
 
     mapping(uint256 => Player) public players;
     address public owner;
-    uint256 public minBet = 0.01 ether;
-    uint256 public maxBet = 10 ether;
+    uint256 public minBet = 100 * 10 ** 18;
+    uint256 public maxBet = 10000 * 10 ** 18;
+    IERC20 public gameToken;
 
+    event HouseFundsDeposited(address indexed owner, uint256 amount);
     event FundsDeposited(
         uint256 playerId,
         address indexed player,
@@ -38,8 +43,9 @@ contract Blackjack {
         uint256 amount
     );
 
-    constructor() {
+    constructor(address _tokenAddress) {
         owner = msg.sender;
+        gameToken = IERC20(_tokenAddress);
     }
 
     modifier onlyOwner() {
@@ -60,8 +66,8 @@ contract Blackjack {
         _;
     }
 
-    function deposit(uint256 _playerId) external payable {
-        require(msg.value > 0, "Deposit amount must be greater than 0");
+    function deposit(uint256 _playerId, uint256 _amount) external nonReentrant {
+        require(_amount > 0, "Deposit amount must be greater than 0");
 
         if (!players[_playerId].exists) {
             players[_playerId].exists = true;
@@ -73,8 +79,13 @@ contract Blackjack {
             );
         }
 
-        players[_playerId].balance += msg.value;
-        emit FundsDeposited(_playerId, msg.sender, msg.value);
+        require(
+            gameToken.transferFrom(msg.sender, address(this), _amount),
+            "Token transfer failed"
+        );
+
+        players[_playerId].balance += _amount;
+        emit FundsDeposited(_playerId, msg.sender, _amount);
     }
 
     function getBalance(uint256 _playerId) external view returns (uint256) {
@@ -85,7 +96,7 @@ contract Blackjack {
     function placeBet(
         uint256 _playerId,
         uint256 _betAmount
-    ) external validPlayerId(_playerId) {
+    ) external validPlayerId(_playerId) nonReentrant {
         require(!players[_playerId].hasActiveBet, "Player has an active bet");
         require(_betAmount >= minBet, "Bet amount below minimum");
         require(_betAmount <= maxBet, "Bet amount above maximum");
@@ -103,7 +114,7 @@ contract Blackjack {
     function resolveGame(
         uint256 _playerId,
         GameState _gameState
-    ) external onlyOwner validPlayerId(_playerId) {
+    ) external onlyOwner validPlayerId(_playerId) nonReentrant {
         require(
             players[_playerId].hasActiveBet,
             "No active bet for this player"
@@ -134,7 +145,12 @@ contract Blackjack {
     function withdraw(
         uint256 _playerId,
         uint256 _amount
-    ) external validPlayerId(_playerId) onlyPlayerOwner(_playerId) {
+    )
+        external
+        validPlayerId(_playerId)
+        onlyPlayerOwner(_playerId)
+        nonReentrant
+    {
         require(_amount > 0, "Withdrawal amount must be greater than 0");
         require(
             !players[_playerId].hasActiveBet,
@@ -143,8 +159,10 @@ contract Blackjack {
         require(players[_playerId].balance >= _amount, "Insufficient balance");
 
         players[_playerId].balance -= _amount;
-        (bool sent, ) = msg.sender.call{value: _amount}("");
-        require(sent, "Failed to send Ether");
+        require(
+            gameToken.transfer(msg.sender, _amount),
+            "Token transfer failed"
+        );
 
         emit FundsWithdrawn(_playerId, msg.sender, _amount);
     }
@@ -158,12 +176,26 @@ contract Blackjack {
         maxBet = _newMaxBet;
     }
 
-    function withdrawHouseFunds(uint256 _amount) external onlyOwner {
+    function withdrawHouseFunds(
+        uint256 _amount
+    ) external onlyOwner nonReentrant {
         require(
-            _amount <= address(this).balance,
+            _amount <= gameToken.balanceOf(address(this)),
             "Insufficient contract balance"
         );
-        (bool sent, ) = owner.call{value: _amount}("");
-        require(sent, "Failed to send Ether");
+        require(gameToken.transfer(owner, _amount), "Token transfer failed");
+    }
+
+    function depositHouseFunds(
+        uint256 _amount
+    ) external onlyOwner nonReentrant {
+        require(_amount > 0, "Deposit amount must be greater than 0");
+
+        require(
+            gameToken.transferFrom(msg.sender, address(this), _amount),
+            "Token transfer failed"
+        );
+
+        emit HouseFundsDeposited(msg.sender, _amount);
     }
 }
