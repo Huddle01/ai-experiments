@@ -1,146 +1,112 @@
-import asyncio
+import json
 
+from dotenv import load_dotenv
 from eth_account import Account
-from web3 import AsyncWeb3, WebSocketProvider
+from web3 import Web3
+
+load_dotenv()
 
 
-class Web3WalletHandler:
-    def __init__(self):
+class BlackjackDealer:
+    """
+    A Python class to interact with the Blackjack smart contract.
+    """
+
+    # Mirror of the GameState enum in the contract for convenience:
+    # enum GameState {
+    #   PLAYER_BUST,
+    #   DEALER_BUST,
+    #   PLAYER_BLACKJACK,
+    #   DEALER_BLACKJACK,
+    #   PLAYER_WIN,
+    #   DEALER_WIN,
+    #   TIE
+    # }
+
+    GameState = {
+        "PLAYER_BUST": 0,
+        "DEALER_BUST": 1,
+        "PLAYER_BLACKJACK": 2,
+        "DEALER_BLACKJACK": 3,
+        "PLAYER_WIN": 4,
+        "DEALER_WIN": 5,
+        "TIE": 6,
+    }
+
+    def __init__(self, rpc_url: str, contract_address: str, owner_private_key: str):
         """
-        Initializes the Web3 Wallet Handler with a WebSocket provider.
+        :param rpc_url: The HTTP/S RPC URL for the Ethereum network.
+        :param contract_address: Deployed address of the Blackjack contract.
+        :param contract_abi: ABI of the Blackjack contract.
+        :param owner_private_key: Private key of the contract owner (dealer).
         """
-        self.websocket_url = "wss://huddle-testnet.rpc.caldera.xyz/ws"
-        self.w3: AsyncWeb3 | None = None
+        self.web3 = Web3(Web3.HTTPProvider(rpc_url))
 
-    async def start(self):
-        self.w3 = AsyncWeb3(WebSocketProvider(self.websocket_url))
-        if self.w3 is None:
-            raise ConnectionError(
-                "Failed to connect to the Ethereum WebSocket provider."
-            )
+        with open("apps/blackjack/web3/abi/Blackjack.json") as f:
+            contract_abi = json.load(f)
 
-        # Add the POA middleware for compatibility with networks like BSC or Polygon
-        # self.w3.middleware_onion.inject(proof_of_authority, layer=0)
+        self.contract = self.web3.eth.contract(
+            address=self.web3.to_checksum_address(contract_address), abi=contract_abi
+        )
 
-        if not await self.w3.is_connected():
-            raise ConnectionError(
-                "Failed to connect to the Ethereum WebSocket provider."
-            )
-        print("Connected to Ethereum WebSocket provider.")
+        self.owner_account = Account.from_key(owner_private_key)
 
-    def create_wallet(self):
+    def ether_to_wei(self, amount: int) -> int:
         """
-        Creates a new Ethereum wallet.
-
-        Returns:
-            dict: A dictionary containing the address and private key.
+        Converts Ether to Wei.
+        :param amount: Amount in Ether (integer or float).
+        :return: Equivalent Wei value.
         """
-        account = Account.create()
-        wallet = {
-            "address": account.address,
-            "private_key": account.key.hex(),
-        }
-        print(f"New wallet created: {wallet['address']}")
-        return wallet
+        return self.web3.to_wei(amount, "ether")
 
-    async def get_balance(self, address: str):
+    def get_balance(self, player_id: int) -> int:
         """
-        Gets the Ether balance of an Ethereum address.
-
-        Args:
-            address (str): The Ethereum address to query.
-
-        Returns:
-            float: The balance in Ether.
+        Returns the balance of the given player_id (in wei).
         """
-        if self.w3 is None:
-            raise ConnectionError(
-                "Failed to connect to the Ethereum WebSocket provider."
-            )
-        balance_wei = await self.w3.eth.get_balance(address)
-        print(f"Balance for {address}: {balance_eth} ETH")
-        return balance_eth
+        balance_wei = self.contract.functions.getBalance(player_id).call()
+        return self.web3.from_wei(balance_wei, "ether")
 
-    async def send_transaction(
-        self,
-        private_key: str,
-        to_address: str,
-        value_eth: float,
-        gas: int = 21000,
-        gas_price_gwei: int = 50,
-    ):
-        """
-        Sends a transaction from one address to another.
-
-        Args:
-            private_key (str): The private key of the sender's wallet.
-            to_address (str): The recipient's Ethereum address.
-            value_eth (float): The amount to send in Ether.
-            gas (int): The gas limit for the transaction.
-            gas_price_gwei (int): The gas price in Gwei.
-
-        Returns:
-            str: The transaction hash.
-        """
-        if self.w3 is None:
-            raise ConnectionError(
-                "Failed to connect to the Ethereum WebSocket provider."
-            )
-        from_account = Account.from_key(private_key)
-        nonce = await self.w3.eth.get_transaction_count(from_account.address)
-
-        # Prepare transaction
-        tx = {
-            "nonce": nonce,
-            "to": to_address,
-            "value": self.w3.toWei(value_eth, "ether"),
-            "gas": gas,
-            "gasPrice": self.w3.toWei(gas_price_gwei, "gwei"),
-        }
-
-        # Sign transaction
-        signed_tx = self.w3.eth.account.sign_transaction(tx, private_key)
-
-        # Send transaction
-        tx_hash = await self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        print(f"Transaction sent with hash: {tx_hash.hex()}")
-        return tx_hash.hex()
-
-    async def get_transaction_receipt(self, tx_hash: str):
-        """
-        Fetches the receipt of a transaction.
-
-        Args:
-            tx_hash (str): The hash of the transaction.
-
-        Returns:
-            dict: The transaction receipt.
-        """
-        if self.w3 is None:
-            raise ConnectionError(
-                "Failed to connect to the Ethereum WebSocket provider."
-            )
-        receipt = await self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        print(f"Transaction receipt: {receipt}")
+    def place_bet(self, player_id: int, bet_amount: int):
+        bet_amount_wei = self.ether_to_wei(bet_amount)
+        tx = self.contract.functions.placeBet(
+            player_id, bet_amount_wei
+        ).build_transaction(
+            {
+                "from": self.owner_account.address,
+                "nonce": self.web3.eth.get_transaction_count(
+                    self.owner_account.address
+                ),
+                "gas": 300000,
+                "gasPrice": self.web3.eth.gas_price,
+            }
+        )
+        signed_tx = self.web3.eth.account.sign_transaction(
+            tx, private_key=self.owner_account.key
+        )
+        tx_hash = self.web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
         return receipt
 
-
-# Example Usage
-async def main():
-    # Initialize Web3WalletHandler with a WebSocket provider
-    wallet_handler = Web3WalletHandler()
-    await wallet_handler.start()
-
-    # Create a new wallet
-    wallet = wallet_handler.create_wallet()
-
-    # Check the balance of the wallet
-    await wallet_handler.get_balance(wallet["address"])
-
-    # Send a transaction (example, replace with actual values)
-    # Replace `TO_ADDRESS` with the recipient's address
-    # await wallet_handler.send_transaction(wallet["private_key"], "TO_ADDRESS", 0.01)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    def resolve_game(self, player_id: int, game_state: int):
+        """
+        Dealer/owner resolves the game by passing the result (game_state).
+        Only the owner can call this in the contract.
+        """
+        tx = self.contract.functions.resolveGame(
+            player_id, game_state
+        ).build_transaction(
+            {
+                "from": self.owner_account.address,
+                "nonce": self.web3.eth.get_transaction_count(
+                    self.owner_account.address
+                ),
+                "gas": 300000,
+                "gasPrice": self.web3.eth.gas_price,
+            }
+        )
+        signed_tx = self.web3.eth.account.sign_transaction(
+            tx, private_key=self.owner_account.key
+        )
+        tx_hash = self.web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        return receipt
